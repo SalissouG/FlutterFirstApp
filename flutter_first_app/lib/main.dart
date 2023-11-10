@@ -1,6 +1,5 @@
 import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -42,6 +41,11 @@ class MyAppState extends ChangeNotifier {
     } else {
       favorites.add(current);
     }
+    notifyListeners();
+  }
+
+  void removeFavorite(WordPair pair) {
+    favorites.remove(pair);
     notifyListeners();
   }
 }
@@ -156,27 +160,41 @@ class GeneratorPage extends StatelessWidget {
 
 class BigCard extends StatelessWidget {
   const BigCard({
-    super.key,
+    Key? key,
     required this.pair,
-  });
+  }) : super(key: key);
 
   final WordPair pair;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context); 
-    final style = theme.textTheme.displayMedium!.copyWith(
-      color: theme.colorScheme.onPrimary
+    var theme = Theme.of(context);
+    var style = theme.textTheme.displayMedium!.copyWith(
+      color: theme.colorScheme.onPrimary,
     );
 
     return Card(
       color: theme.colorScheme.primary,
       child: Padding(
         padding: const EdgeInsets.all(20),
-         child: Text(
-          pair.asLowerCase,
-          style: style,
-          semanticsLabel: "${pair.first} ${pair.second}",
+        child: AnimatedSize(
+          duration: Duration(milliseconds: 200),
+          // Make sure that the compound word wraps correctly when the window
+          // is too narrow.
+          child: MergeSemantics(
+            child: Wrap(
+              children: [
+                Text(
+                  pair.first,
+                  style: style.copyWith(fontWeight: FontWeight.w200),
+                ),
+                Text(
+                  pair.second,
+                  style: style.copyWith(fontWeight: FontWeight.bold),
+                )
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -186,6 +204,7 @@ class BigCard extends StatelessWidget {
 class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    var theme = Theme.of(context);
     var appState = context.watch<MyAppState>();
 
     if (appState.favorites.isEmpty) {
@@ -194,18 +213,39 @@ class FavoritesPage extends StatelessWidget {
       );
     }
 
-    return ListView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(30),
           child: Text('You have '
               '${appState.favorites.length} favorites:'),
         ),
-        for (var pair in appState.favorites)
-          ListTile(
-            leading: Icon(Icons.favorite),
-            title: Text(pair.asLowerCase),
+        Expanded(
+          // Make better use of wide windows with a grid.
+          child: GridView(
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 400,
+              childAspectRatio: 400 / 80,
+            ),
+            children: [
+              for (var pair in appState.favorites)
+                ListTile(
+                  leading: IconButton(
+                    icon: Icon(Icons.delete_outline, semanticLabel: 'Delete'),
+                    color: theme.colorScheme.primary,
+                    onPressed: () {
+                      appState.removeFavorite(pair);
+                    },
+                  ),
+                  title: Text(
+                    pair.asLowerCase,
+                    semanticsLabel: pair.asPascalCase,
+                  ),
+                ),
+            ],
           ),
+        ),
       ],
     );
   }
